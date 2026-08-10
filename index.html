@@ -154,6 +154,7 @@
     let rawComponents = [];
     let lineUserId = "";
     let lineDisplayName = "";
+    let linePictureUrl = "";
 
     // 1. LIFF Initialization
     async function init() {
@@ -165,6 +166,7 @@
           const profile = await liff.getProfile();
           lineUserId = profile.userId;
           lineDisplayName = profile.displayName;
+          linePictureUrl = profile.pictureUrl;
         }
       } catch (err) {
         console.error("LIFF Init Error: ", err);
@@ -261,6 +263,7 @@
       const payload = {
         userId: lineUserId,
         displayName: lineDisplayName,
+        pictureUrl:linePictureUrl,
         assetCode: document.getElementById("reqAsset").value,
         componentCode: document.getElementById("reqComp").value,
         reqType: selectedType,
