@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบแจ้งซ่อม</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 16px; background-color: #f8f9fa; }
+    .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 15px; }
+    label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
+    select, textarea, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+    .btn { background: #06C755; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .btn:disabled { background: #ccc; }
+    #user-info { font-size: 13px; color: #666; margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h3 style="margin-top:0;">🔧 ฟอร์มแจ้งซ่อม</h3>
+    <div id="user-info">กำลังโหลดข้อมูลผู้ใช้...</div>
+
+    <form id="repairForm">
+      <!-- 1. เลือก Asset Code / เครื่องจักร -->
+      <div class="form-group">
+        <label for="assetSelect">เลือกเครื่องจักร (Asset Code):</label>
+        <select id="assetSelect" required>
+          <option value="">-- กำลังโหลดรายการเครื่องจักร --</option>
+        </select>
+      </div>
+
+      <!-- 2. เลือก Component (ขึ้นตาม Asset Code ที่เลือก) -->
+      <div class="form-group">
+        <label for="componentSelect">ชิ้นส่วน / อุปกรณ์ที่เสีย (Component):</label>
+        <select id="componentSelect" disabled required>
+          <option value="">-- กรุณาเลือกเครื่องจักรก่อน --</option>
+        </select>
+      </div>
+
+      <!-- 3. กรอกอาการเสีย -->
+      <div class="form-group">
+        <label for="symptom">รายละเอียดอาการเสีย:</label>
+        <textarea id="symptom" rows="3" placeholder="ระบุอาการเสียเพิ่มเติม..." required></textarea>
+      </div>
+
+      <button type="submit" id="submitBtn" class="btn" disabled>ส่งแจ้งซ่อม</button>
+    </form>
+  </div>
+
+  <script>
+    const LIFF_ID = "2011045112-nTERJAZu"; 
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyqXT58CCs28jGuKAMzTTtn4bnRCJkXI7Pm8vYisrGdj6eNLjPJHnrQYHQkU117FI3Akw/exec"; 
+
+    let machineDataList = []; // เก็บข้อมูลเครื่องจักรที่ดึงมาจาก GAS
+    let lineUserId = "";
+    let lineDisplayName = "";
+
+    async function main() {
+      // 1. Initialize LIFF
+      await liff.init({ liffId: LIFF_ID });
+
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
+      // ดึง Profile จาก LINE
+      const profile = await liff.getProfile();
+      lineUserId = profile.userId;
+      lineDisplayName = profile.displayName;
+      document.getElementById("user-info").innerText = `ผู้แจ้ง: ${lineDisplayName}`;
+
+      // 2. ดึงรายการ Asset Code จาก Google Apps Script
+      await loadMachineData();
+    }
+
+    // ดึงข้อมูลเครื่องจักรจาก GAS ผ่าน API (doGet)
+    async function loadMachineData() {
+      try {
+        const response = await fetch(`${GAS_API_URL}?action=getMachines`);
+        const result = await response.json();
+
+        if (result.status === "success") {
+          machineDataList = result.data;
+          renderAssetOptions();
+        }
+      } catch (err) {
+        alert("ไม่สามารถโหลดรายการเครื่องจักรได้: " + err.message);
+      }
+    }
+
+    // แสดงรายการ Asset Code ใน Dropdown
+    function renderAssetOptions() {
+      const assetSelect = document.getElementById("assetSelect");
+      assetSelect.innerHTML = '<option value="">-- เลือก Asset Code --</option>';
+
+      machineDataList.forEach((item, index) => {
+        const option = document.createElement("option");
+        option.value = index; // เก็บ index เพื่อนำไปค้นหา component ต่อ
+        option.textContent = `[${item.assetCode}] ${item.machineName}`;
+        assetSelect.appendChild(option);
+      });
+
+      document.getElementById("submitBtn").disabled = false;
+    }
+
+    // Event: เมื่อมีการเปลี่ยนการเลือก Asset Code -> อัปเดตรายการ Component
+    document.getElementById("assetSelect").addEventListener("change", function() {
+      const selectedIndex = this.value;
+      const componentSelect = document.getElementById("componentSelect");
+
+      if (selectedIndex === "") {
+        componentSelect.innerHTML = '<option value="">-- กรุณาเลือกเครื่องจักรก่อน --</option>';
+        componentSelect.disabled = true;
+        return;
+      }
+
+      const selectedMachine = machineDataList[selectedIndex];
+      componentSelect.innerHTML = '<option value="">-- เลือก Component --</option>';
+
+      // ใส่ Component รายการย่อย
+      selectedMachine.components.forEach(comp => {
+        const option = document.createElement("option");
+        option.value = comp;
+        option.textContent = comp;
+        componentSelect.appendChild(option);
+      });
+
+      // เพิ่มตัวเลือก "อื่นๆ" สำรองไว้
+      const otherOpt = document.createElement("option");
+      otherOpt.value = "อื่นๆ / ไม่ระบุ";
+      otherOpt.textContent = "อื่นๆ / ไม่ระบุ";
+      componentSelect.appendChild(otherOpt);
+
+      componentSelect.disabled = false;
+    });
+
+    // Event: Submit ฟอร์มแจ้งซ่อม
+    document.getElementById("repairForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById("submitBtn");
+      submitBtn.disabled = true;
+      submitBtn.innerText = "กำลังส่งข้อมูล...";
+
+      const selectedIndex = document.getElementById("assetSelect").value;
+      const selectedMachine = machineDataList[selectedIndex];
+
+      const payload = {
+        userId: lineUserId,
+        displayName: lineDisplayName,
+        assetCode: selectedMachine.assetCode,
+        machineName: selectedMachine.machineName,
+        component: document.getElementById("componentSelect").value,
+        symptom: document.getElementById("symptom").value
+      };
+
+      try {
+        await fetch(GAS_API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        alert("ส่งข้อมูลการแจ้งซ่อมเรียบร้อยแล้ว!");
+        liff.closeWindow(); // ปิดหน้า LIFF
+      } catch (err) {
+        alert("เกิดข้อผิดพลาดในการส่งข้อมูล: " + err.message);
+        submitBtn.disabled = false;
+        submitBtn.innerText = "ส่งแจ้งซ่อม";
+      }
+    });
+
+    main();
+  </script>
+</body>
+</html>
