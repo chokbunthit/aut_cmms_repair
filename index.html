@@ -3,158 +3,271 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบแจ้งซ่อม</title>
+  <title>กรอกข้อมูลแจ้งซ่อม</title>
+  
+  <!-- Tailwind CSS & FontAwesome Icons & LIFF SDK -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 16px; background-color: #f8f9fa; }
-    .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .form-group { margin-bottom: 15px; }
-    label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
-    select, textarea, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-    .btn { background: #06C755; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
-    .btn:disabled { background: #ccc; }
-    #user-info { font-size: 13px; color: #666; margin-bottom: 15px; }
+    .fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen p-4 flex items-center justify-center">
 
-  <div class="card">
-    <h3 style="margin-top:0;">🔧 ฟอร์มแจ้งซ่อม</h3>
-    <div id="user-info">กำลังโหลดข้อมูลผู้ใช้...</div>
+  <div id="requestFormCard" class="w-full max-w-md bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden fade-in">
 
-    <form id="repairForm">
-      <!-- 1. เลือก Asset Code / เครื่องจักร -->
-      <div class="form-group">
-        <label for="assetSelect">เลือกเครื่องจักร (Asset Code):</label>
-        <select id="assetSelect" required>
-          <option value="">-- กำลังโหลดรายการเครื่องจักร --</option>
-        </select>
+    <!-- Header -->
+    <div class="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2">
+      <i class="fa-solid fa-paper-plane text-amber-500 text-xs"></i>
+      <span class="text-xs font-bold text-gray-700">กรอกข้อมูลแจ้งซ่อม</span>
+    </div>
+
+    <form id="requestForm" onsubmit="handleRequestSubmit(event)" class="p-5 space-y-4">
+
+      <!-- Asset -->
+      <div>
+        <label class="block text-[11px] font-bold text-gray-600 mb-1.5">
+          Asset Code <span class="text-red-500">*</span>
+        </label>
+        <div class="relative">
+          <input
+            type="text"
+            id="reqAsset"
+            placeholder="เช่น FA-CR001"
+            list="req-asset-list"
+            oninput="onAssetInput(this.value)"
+            required
+            class="w-full px-3 pr-12 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500">
+          
+          <datalist id="req-asset-list"></datalist>
+
+          <button
+            type="button"
+            onclick="goToScannerAssetQR('reqAsset')"
+            class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <i class="fas fa-qrcode text-lg"></i>
+          </button>
+        </div>
       </div>
 
-      <!-- 2. เลือก Component (ขึ้นตาม Asset Code ที่เลือก) -->
-      <div class="form-group">
-        <label for="componentSelect">ชิ้นส่วน / อุปกรณ์ที่เสีย (Component):</label>
-        <select id="componentSelect" disabled required>
-          <option value="">-- กรุณาเลือกเครื่องจักรก่อน --</option>
-        </select>
+      <!-- Component -->
+      <div>
+        <label class="block text-[11px] font-bold text-gray-600 mb-1.5">
+          Component Code
+        </label>
+        <div class="relative">
+          <input
+            type="text"
+            id="reqComp"
+            placeholder="เช่น FA-CR001-MT01"
+            list="req-component-list"
+            class="w-full px-3 pr-12 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500">
+          
+          <datalist id="req-component-list"></datalist>
+
+          <button
+            type="button"
+            onclick="goToScannerAssetQR('reqComp')"
+            class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <i class="fas fa-qrcode text-lg"></i>
+          </button>
+        </div>
       </div>
 
-      <!-- 3. กรอกอาการเสีย -->
-      <div class="form-group">
-        <label for="symptom">รายละเอียดอาการเสีย:</label>
-        <textarea id="symptom" rows="3" placeholder="ระบุอาการเสียเพิ่มเติม..." required></textarea>
+      <!-- Type -->
+      <div>
+        <label class="block text-xs font-bold text-gray-700 mb-2">
+          ประเภท <span class="text-red-500">*</span>
+        </label>
+        <div class="grid grid-cols-2 gap-1 p-1 bg-gray-100/80 rounded-xl border border-gray-200/60">
+          <label class="cursor-pointer">
+            <input type="radio" name="reqType" id="reqTypeCM" value="CM" checked class="peer hidden">
+            <div class="flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-gray-500 peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm">
+              <i class="fa-solid fa-wrench text-xs"></i>
+              แจ้งซ่อมทั่วไป
+            </div>
+          </label>
+
+          <label class="cursor-pointer">
+            <input type="radio" name="reqType" id="reqTypeBM" value="BM" class="peer hidden">
+            <div class="flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-gray-500 peer-checked:bg-white peer-checked:text-red-600 peer-checked:shadow-sm">
+              <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+              เครื่องจักรหยุดทำงาน
+            </div>
+          </label>
+        </div>
       </div>
 
-      <button type="submit" id="submitBtn" class="btn" disabled>ส่งแจ้งซ่อม</button>
+      <!-- Priority -->
+      <select id="reqPriority" class="hidden">
+        <option value="Normal">ปกติ</option>
+        <option value="Medium">ปานกลาง</option>
+        <option value="High">ด่วน</option>
+        <option value="Critical">ด่วนที่สุด</option>
+      </select>
+
+      <!-- Description -->
+      <div>
+        <label class="block text-[11px] font-bold text-gray-600 mb-1.5">
+          รายละเอียดปัญหา <span class="text-red-500">*</span>
+        </label>
+        <textarea
+          id="reqDesc"
+          rows="3"
+          required
+          placeholder="อธิบายอาการเสีย หรือปัญหาที่พบ..."
+          class="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-blue-500"></textarea>
+      </div>
+
+      <!-- Image -->
+      <div>
+        <label class="block text-[11px] font-bold text-gray-600 mb-1.5">
+          รูปภาพ (ถ้ามี)
+        </label>
+        <input
+          type="file"
+          id="reqImageFile"
+          accept="image/*"
+          capture="environment"
+          class="w-full text-[11px] text-gray-500 border border-gray-200 rounded-xl p-1.5 bg-gray-50/50">
+      </div>
+
+      <!-- Submit -->
+      <button
+        type="submit"
+        id="submitBtn"
+        class="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-paper-plane text-xs"></i>
+        ส่งแจ้งซ่อม
+      </button>
+
     </form>
   </div>
 
   <script>
-    const LIFF_ID = "2011045112-nTERJAZu"; 
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyqXT58CCs28jGuKAMzTTtn4bnRCJkXI7Pm8vYisrGdj6eNLjPJHnrQYHQkU117FI3Akw/exec"; 
+    const LIFF_ID = "2011045112-nTERJAZu";
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwP5sTJMbkDSmYOQXE6HVvNNAmjzeaP88LEPOC8_-Ma-AR3HT26C7K7EXpUmjlHCs5uIw/exec";
 
-    let machineDataList = []; // เก็บข้อมูลเครื่องจักรที่ดึงมาจาก GAS
+    let rawAssets = [];
+    let rawComponents = [];
     let lineUserId = "";
     let lineDisplayName = "";
 
-    async function main() {
-      // 1. Initialize LIFF
-      await liff.init({ liffId: LIFF_ID });
-
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
-      }
-
-      // ดึง Profile จาก LINE
-      const profile = await liff.getProfile();
-      lineUserId = profile.userId;
-      lineDisplayName = profile.displayName;
-      document.getElementById("user-info").innerText = `ผู้แจ้ง: ${lineDisplayName}`;
-
-      // 2. ดึงรายการ Asset Code จาก Google Apps Script
-      await loadMachineData();
-    }
-
-    // ดึงข้อมูลเครื่องจักรจาก GAS ผ่าน API (doGet)
-    async function loadMachineData() {
+    // 1. LIFF Initialization
+    async function init() {
       try {
-        const response = await fetch(`${GAS_API_URL}?action=getMachines`);
-        const result = await response.json();
-
-        if (result.status === "success") {
-          machineDataList = result.data;
-          renderAssetOptions();
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) {
+          liff.login();
+        } else {
+          const profile = await liff.getProfile();
+          lineUserId = profile.userId;
+          lineDisplayName = profile.displayName;
         }
       } catch (err) {
-        alert("ไม่สามารถโหลดรายการเครื่องจักรได้: " + err.message);
+        console.error("LIFF Init Error: ", err);
+      }
+      loadMachineData();
+    }
+
+    // 2. Fetch Machines & Components Data from GAS
+    async function loadMachineData() {
+      try {
+        const res = await fetch(`${GAS_API_URL}?action=getMachines`);
+        const json = await res.json();
+        if (json.status === "success") {
+          rawAssets = json.data.assets;
+          rawComponents = json.data.components;
+          renderAssetDatalist();
+        }
+      } catch (e) {
+        console.error("Fetch Data Error:", e);
       }
     }
 
-    // แสดงรายการ Asset Code ใน Dropdown
-    function renderAssetOptions() {
-      const assetSelect = document.getElementById("assetSelect");
-      assetSelect.innerHTML = '<option value="">-- เลือก Asset Code --</option>';
-
-      machineDataList.forEach((item, index) => {
-        const option = document.createElement("option");
-        option.value = index; // เก็บ index เพื่อนำไปค้นหา component ต่อ
-        option.textContent = `[${item.assetCode}] ${item.machineName}`;
-        assetSelect.appendChild(option);
+    // 3. Render Asset Datalist
+    function renderAssetDatalist() {
+      const assetList = document.getElementById("req-asset-list");
+      assetList.innerHTML = "";
+      rawAssets.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.assetCode;
+        opt.label = item.machineName ? `${item.assetCode} - ${item.machineName}` : item.assetCode;
+        assetList.appendChild(opt);
       });
-
-      document.getElementById("submitBtn").disabled = false;
     }
 
-    // Event: เมื่อมีการเปลี่ยนการเลือก Asset Code -> อัปเดตรายการ Component
-    document.getElementById("assetSelect").addEventListener("change", function() {
-      const selectedIndex = this.value;
-      const componentSelect = document.getElementById("componentSelect");
-
-      if (selectedIndex === "") {
-        componentSelect.innerHTML = '<option value="">-- กรุณาเลือกเครื่องจักรก่อน --</option>';
-        componentSelect.disabled = true;
-        return;
-      }
-
-      const selectedMachine = machineDataList[selectedIndex];
-      componentSelect.innerHTML = '<option value="">-- เลือก Component --</option>';
-
-      // ใส่ Component รายการย่อย
-      selectedMachine.components.forEach(comp => {
-        const option = document.createElement("option");
-        option.value = comp;
-        option.textContent = comp;
-        componentSelect.appendChild(option);
-      });
-
-      // เพิ่มตัวเลือก "อื่นๆ" สำรองไว้
-      const otherOpt = document.createElement("option");
-      otherOpt.value = "อื่นๆ / ไม่ระบุ";
-      otherOpt.textContent = "อื่นๆ / ไม่ระบุ";
-      componentSelect.appendChild(otherOpt);
-
-      componentSelect.disabled = false;
-    });
-
-    // Event: Submit ฟอร์มแจ้งซ่อม
-    document.getElementById("repairForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    // 4. Triggered when Asset Code Input Changes -> Filter Component List
+    function onAssetInput(val) {
+      const compList = document.getElementById("req-component-list");
+      compList.innerHTML = "";
       
-      const submitBtn = document.getElementById("submitBtn");
-      submitBtn.disabled = true;
-      submitBtn.innerText = "กำลังส่งข้อมูล...";
+      const filtered = rawComponents.filter(c => c.assetCode === val || c.compCode.startsWith(val));
+      filtered.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.compCode;
+        opt.label = item.compName ? `${item.compCode} - ${item.compName}` : item.compCode;
+        compList.appendChild(opt);
+      });
+    }
 
-      const selectedIndex = document.getElementById("assetSelect").value;
-      const selectedMachine = machineDataList[selectedIndex];
+    // 5. QR Code Scanner Function for Input
+    function goToScannerAssetQR(targetInputId) {
+      if (liff.isInClient() && liff.scanCodeV2) {
+        liff.scanCodeV2().then(result => {
+          if (result.value) {
+            const scannedValue = result.value.trim();
+            document.getElementById(targetInputId).value = scannedValue;
+            
+            // ถ้าเป็นการสแกนช่อง Asset Code ให้ดึง Filter Component ต่อด้วย
+            if (targetInputId === "reqAsset") {
+              onAssetInput(scannedValue);
+            }
+          }
+        }).catch(err => {
+          console.error("QR Scan error: ", err);
+        });
+      } else {
+        alert("การสแกน QR Code รองรับเฉพาะการใช้งานผ่านแอปพลิเคชัน LINE บนมือถือเท่านั้น");
+      }
+    }
+
+    // Helper: Base64 Convert
+    function getBase64(file) {
+      return new Promise((resolve, reject) => {
+        if (!file) resolve("");
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    // 6. Submit Handler
+    async function handleRequestSubmit(e) {
+      e.preventDefault();
+
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs"></i> กำลังส่งข้อมูล...`;
+
+      const file = document.getElementById("reqImageFile").files[0];
+      const imageBase64 = file ? await getBase64(file) : "";
+      
+      const selectedType = document.querySelector('input[name="reqType"]:checked').value;
 
       const payload = {
         userId: lineUserId,
         displayName: lineDisplayName,
-        assetCode: selectedMachine.assetCode,
-        machineName: selectedMachine.machineName,
-        component: document.getElementById("componentSelect").value,
-        symptom: document.getElementById("symptom").value
+        assetCode: document.getElementById("reqAsset").value,
+        componentCode: document.getElementById("reqComp").value,
+        reqType: selectedType,
+        priority: document.getElementById("reqPriority").value,
+        symptom: document.getElementById("reqDesc").value,
+        image: imageBase64
       };
 
       try {
@@ -166,15 +279,19 @@
         });
 
         alert("ส่งข้อมูลการแจ้งซ่อมเรียบร้อยแล้ว!");
-        liff.closeWindow(); // ปิดหน้า LIFF
+        if (liff.isInClient()) {
+          liff.closeWindow();
+        } else {
+          location.reload();
+        }
       } catch (err) {
-        alert("เกิดข้อผิดพลาดในการส่งข้อมูล: " + err.message);
-        submitBtn.disabled = false;
-        submitBtn.innerText = "ส่งแจ้งซ่อม";
+        alert("เกิดข้อผิดพลาด: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i> ส่งแจ้งซ่อม`;
       }
-    });
+    }
 
-    main();
+    init();
   </script>
 </body>
 </html>
