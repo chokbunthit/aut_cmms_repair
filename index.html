@@ -145,6 +145,13 @@
 
     </form>
   </div>
+  <div id="loadingOverlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 transition-opacity duration-300">
+    <div class="relative flex items-center justify-center">
+      <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+      <i class="fa-solid fa-wrench text-blue-600 text-xs absolute"></i>
+    </div>
+    <p id="loadingText" class="mt-4 text-xs font-semibold text-gray-600 animate-pulse">กำลังดาวน์โหลดข้อมูลระบบ...</p>
+  </div>
 
   <script>
     const LIFF_ID = "2011045112-nTERJAZu";
@@ -157,37 +164,46 @@
     let linePictureUrl = "";
 
     // 1. LIFF Initialization
-    async function init() {
-      try {
-        await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) {
-          liff.login();
-        } else {
-          const profile = await liff.getProfile();
-          lineUserId = profile.userId;
-          lineDisplayName = profile.displayName;
-          linePictureUrl = profile.pictureUrl;
-        }
-      } catch (err) {
-        console.error("LIFF Init Error: ", err);
-      }
-      loadMachineData();
+    // 1. LIFF Initialization
+async function init() {
+  showLoading("กำลังเชื่อมต่อระบบ LINE...");
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    } else {
+      const profile = await liff.getProfile();
+      lineUserId = profile.userId;
+      lineDisplayName = profile.displayName;
+      linePictureUrl = profile.pictureUrl;
     }
+  } catch (err) {
+    console.error("LIFF Init Error: ", err);
+  }
 
-    // 2. Fetch Machines & Components Data from GAS
-    async function loadMachineData() {
-      try {
-        const res = await fetch(`${GAS_API_URL}?action=getMachines`);
-        const json = await res.json();
-        if (json.status === "success") {
-          rawAssets = json.data.assets;
-          rawComponents = json.data.components;
-          renderAssetDatalist();
-        }
-      } catch (e) {
-        console.error("Fetch Data Error:", e);
-      }
+  // โหลดข้อมูลเครื่องจักรต่อ
+  await loadMachineData();
+}
+
+// 2. Fetch Machines & Components Data from GAS
+async function loadMachineData() {
+  showLoading("กำลังโหลดข้อมูลเครื่องจักร...");
+  try {
+    const res = await fetch(`${GAS_API_URL}?action=getMachines`);
+    const json = await res.json();
+    if (json.status === "success") {
+      rawAssets = json.data.assets;
+      rawComponents = json.data.components;
+      renderAssetDatalist();
     }
+  } catch (e) {
+    console.error("Fetch Data Error:", e);
+  } finally {
+    // ปิด Loading เมื่อโหลดข้อมูลทุกอย่างเสร็จสิ้น พร้อมให้กรอกข้อมูล
+    hideLoading();
+  }
+}
 
     // 3. Render Asset Datalist
     function renderAssetDatalist() {
@@ -286,31 +302,42 @@
     const response = await fetch(GAS_API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" }, // ใช้ text/plain เพื่อเลี่ยง CORS preflight ของ GAS
-      body: JSON.stringify(payload)
-    });
-
-    const resData = await response.json();
-
-    if (resData.status === "success") {
-      alert("ส่งข้อมูลการแจ้งซ่อมเรียบร้อยแล้ว!");
-      if (liff.isInClient()) {
-        liff.closeWindow();
-      } else {
-        location.reload();
+          body: JSON.stringify(payload)
+        });
+    
+        const resData = await response.json();
+    
+        if (resData.status === "success") {
+          alert("ส่งข้อมูลการแจ้งซ่อมเรียบร้อยแล้ว!");
+          if (liff.isInClient()) {
+            liff.closeWindow();
+          } else {
+            location.reload();
+          }
+        } else {
+          // แสดง Message จริงจาก GAS (เช่น ติดอนุมัติ / หา Sheet ไม่เจอ)
+          alert("ไม่สามารถบันทึกได้: " + resData.message);
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i> ส่งแจ้งซ่อม`;
+        }
+    
+      } catch (err) {
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i> ส่งแจ้งซ่อม`;
       }
-    } else {
-      // แสดง Message จริงจาก GAS (เช่น ติดอนุมัติ / หา Sheet ไม่เจอ)
-      alert("ไม่สามารถบันทึกได้: " + resData.message);
-      btn.disabled = false;
-      btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i> ส่งแจ้งซ่อม`;
+    }
+    function showLoading(text) {
+      const overlay = document.getElementById("loadingOverlay");
+      const textEl = document.getElementById("loadingText");
+      if (textEl) textEl.innerText = text || "กำลังโหลดข้อมูล...";
+      if (overlay) overlay.classList.remove("hidden");
     }
 
-  } catch (err) {
-    alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
-    btn.disabled = false;
-    btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i> ส่งแจ้งซ่อม`;
-  }
-}
+    function hideLoading() {
+      const overlay = document.getElementById("loadingOverlay");
+      if (overlay) overlay.classList.add("hidden");
+    }
 
     init();
   </script>
