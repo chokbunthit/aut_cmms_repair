@@ -148,7 +148,7 @@
 
   <script>
     const LIFF_ID = "2011045112-nTERJAZu";
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxOfdJKI6i7J9AlNVOQ8Ptsarr__cDFx6nB2z-eYxGyO7W0JweKrLbfACE_KDXyurJigg/exec";
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbycxQiYGTTWx0vHp9KA2Z1aXKeGGnLqjES3HsHou43C/dev";
 
     let rawAssets = [];
     let rawComponents = [];
@@ -261,6 +261,7 @@
       const selectedType = document.querySelector('input[name="reqType"]:checked').value;
 
       const payload = {
+        action: "createRepairRequest", // ระบุ Action ชัดเจน
         userId: lineUserId,
         displayName: lineDisplayName,
         pictureUrl:linePictureUrl,
