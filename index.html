@@ -250,10 +250,19 @@
     // 6. Submit Handler
    async function handleRequestSubmit(e) {
   e.preventDefault();
+     e.preventDefault();
+
+  // ตรวจสอบก่อนว่าดึง lineUserId สำเร็จหรือยัง
+  if (!lineUserId) {
+    alert("ระบบกำลังโหลดข้อมูลผู้ใช้งาน LINE กรุณาลองใหม่อีกครั้งในอีกสักครู่");
+    return;
+  }
 
   const btn = document.getElementById("submitBtn");
   btn.disabled = true;
   btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs"></i> กำลังส่งข้อมูล...`;
+
+  
 
   const file = document.getElementById("reqImageFile").files[0];
   const imageBase64 = file ? await getBase64(file) : "";
