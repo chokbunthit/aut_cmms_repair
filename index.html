@@ -248,51 +248,60 @@
     }
 
     // 6. Submit Handler
-    async function handleRequestSubmit(e) {
-      e.preventDefault();
+   async function handleRequestSubmit(e) {
+  e.preventDefault();
 
-      const btn = document.getElementById("submitBtn");
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs"></i> กำลังส่งข้อมูล...`;
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs"></i> กำลังส่งข้อมูล...`;
 
-      const file = document.getElementById("reqImageFile").files[0];
-      const imageBase64 = file ? await getBase64(file) : "";
-      
-      const selectedType = document.querySelector('input[name="reqType"]:checked').value;
+  const file = document.getElementById("reqImageFile").files[0];
+  const imageBase64 = file ? await getBase64(file) : "";
+  const selectedType = document.querySelector('input[name="reqType"]:checked').value;
 
-      const payload = {
-        action: "createRepairRequest", // ระบุ Action ชัดเจน
-        userId: lineUserId,
-        displayName: lineDisplayName,
-        pictureUrl:linePictureUrl,
-        assetCode: document.getElementById("reqAsset").value,
-        componentCode: document.getElementById("reqComp").value,
-        reqType: selectedType,
-        priority: document.getElementById("reqPriority").value,
-        symptom: document.getElementById("reqDesc").value,
-        image: imageBase64
-      };
+  const payload = {
+    action: "createRepairRequest",
+    userId: lineUserId,
+    displayName: lineDisplayName,
+    pictureUrl: linePictureUrl,
+    assetCode: document.getElementById("reqAsset").value,
+    componentCode: document.getElementById("reqComp").value,
+    reqType: selectedType,
+    priority: document.getElementById("reqPriority").value,
+    symptom: document.getElementById("reqDesc").value,
+    image: imageBase64
+  };
 
-      try {
-        await fetch(GAS_API_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
+  try {
+    // ส่งแบบปกติโดยไม่ใส่ mode: "no-cors"
+    const response = await fetch(GAS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // ใช้ text/plain เพื่อเลี่ยง CORS preflight ของ GAS
+      body: JSON.stringify(payload)
+    });
 
-        alert("ส่งข้อมูลการแจ้งซ่อมเรียบร้อยแล้ว!");
-        if (liff.isInClient()) {
-          liff.closeWindow();
-        } else {
-          location.reload();
-        }
-      } catch (err) {
-        alert("เกิดข้อผิดพลาด: " + err.message);
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i> ส่งแจ้งซ่อม`;
+    const resData = await response.json();
+
+    if (resData.status === "success") {
+      alert("ส่งข้อมูลการแจ้งซ่อมเรียบร้อยแล้ว!");
+      if (liff.isInClient()) {
+        liff.closeWindow();
+      } else {
+        location.reload();
       }
+    } else {
+      // แสดง Message จริงจาก GAS (เช่น ติดอนุมัติ / หา Sheet ไม่เจอ)
+      alert("ไม่สามารถบันทึกได้: " + resData.message);
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i> ส่งแจ้งซ่อม`;
     }
+
+  } catch (err) {
+    alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i> ส่งแจ้งซ่อม`;
+  }
+}
 
     init();
   </script>
