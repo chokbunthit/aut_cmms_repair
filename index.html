@@ -216,6 +216,40 @@
       </div>
 
 
+      <!-- Department & Location (Optional with Datalist) -->
+      <div class="grid grid-cols-2 gap-3">
+
+        <!-- Department -->
+        <div>
+          <label class="block text-[11px] font-bold text-gray-600 mb-1.5">
+            Department
+          </label>
+          <input
+            type="text"
+            id="reqDept"
+            placeholder="เช่น PP, MT"
+            list="req-dept-list"
+            class="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500">
+          <datalist id="req-dept-list"></datalist>
+        </div>
+
+        <!-- Location -->
+        <div>
+          <label class="block text-[11px] font-bold text-gray-600 mb-1.5">
+            Location
+          </label>
+          <input
+            type="text"
+            id="reqLoc"
+            placeholder="เช่น Factory 1"
+            list="req-loc-list"
+            class="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500">
+          <datalist id="req-loc-list"></datalist>
+        </div>
+
+      </div>
+
+
       <!-- Type -->
       <div>
 
@@ -407,7 +441,7 @@
     const LIFF_ID = "2011076465-Bpkiq0zw"////"2011045112-nTERJAZu";
 
     const GAS_API_URL =
-      "https://script.google.com/macros/s/AKfycbxShoa0Qca_bKLSvwTd7Gs0r_bHbjh0DhvTyx52PjHUvbGmUtIx2PdBa4l0XsTY57-qJA/exec";
+      "https://script.google.com/macros/s/AKfycby1Itw5OmdQ6NRJ6dhkYnNLVN1PvIIhM_vIm7V-VSx_DrWg6-d8Cgo7dl5QoIUMy-Incw/exec";
 
 
     // =========================================================
@@ -416,6 +450,8 @@
 
     let rawAssets = [];
     let rawComponents = [];
+    let rawDepartments = [];
+    let rawLocations = [];
 
     let lineUserId = "";
     let lineDisplayName = "";
@@ -435,35 +471,18 @@
 
       try {
 
-        // -----------------------------------------
-        // LIFF INIT
-        // -----------------------------------------
-
         await liff.init({
           liffId: LIFF_ID
         });
 
-
-        // -----------------------------------------
-        // CHECK LOGIN
-        // -----------------------------------------
-
         if (!liff.isLoggedIn()) {
-
           showLoading(
             "กำลังเข้าสู่ระบบ LINE...",
             "กรุณารอสักครู่"
           );
-
           liff.login();
-
           return;
         }
-
-
-        // -----------------------------------------
-        // GET PROFILE
-        // -----------------------------------------
 
         showLoading(
           "กำลังตรวจสอบข้อมูลผู้ใช้งาน...",
@@ -471,29 +490,16 @@
         );
 
         const profile = await liff.getProfile();
-
         lineUserId = profile.userId || "";
         lineDisplayName = profile.displayName || "";
         linePictureUrl = profile.pictureUrl || "";
 
-
-        // -----------------------------------------
-        // LOAD MACHINE DATA
-        // -----------------------------------------
-
         await loadMachineData();
 
-
       } catch (err) {
-
         console.error("LIFF Init Error:", err);
-
         hideLoading();
-
-        alert(
-          "ไม่สามารถเชื่อมต่อระบบได้\nกรุณาลองเปิดหน้าใหม่อีกครั้ง"
-        );
-
+        alert("ไม่สามารถเชื่อมต่อระบบได้\nกรุณาลองเปิดหน้าใหม่อีกครั้ง");
       }
 
     }
@@ -512,129 +518,120 @@
 
       try {
 
-        const res = await fetch(
-          `${GAS_API_URL}?action=getMachines`
-        );
+        const res = await fetch(`${GAS_API_URL}?action=getMachines`);
 
         if (!res.ok) {
-
-          throw new Error(
-            `HTTP Error ${res.status}`
-          );
-
+          throw new Error(`HTTP Error ${res.status}`);
         }
 
         const json = await res.json();
 
         if (json.status !== "success") {
-
-          throw new Error(
-            json.message || "ไม่สามารถโหลดข้อมูลเครื่องจักรได้"
-          );
-
+          throw new Error(json.message || "ไม่สามารถโหลดข้อมูลเครื่องจักรได้");
         }
 
         rawAssets = json.data?.assets || [];
         rawComponents = json.data?.components || [];
+        rawDepartments = json.data?.departments || [];
+        rawLocations = json.data?.locations || [];
 
         renderAssetDatalist();
-
-
-        // -----------------------------------------
-        // โหลดข้อมูลสำเร็จแล้ว
-        // -----------------------------------------
+        renderDepartmentDatalist();
+        renderLocationDatalist();
 
         hideLoading();
 
       } catch (e) {
-
-        console.error(
-          "Fetch Machine Data Error:",
-          e
-        );
-
+        console.error("Fetch Machine Data Error:", e);
         hideLoading();
-
-        alert(
-          "ไม่สามารถโหลดข้อมูลเครื่องจักรได้\n" +
-          (e.message || "")
-        );
-
+        alert("ไม่สามารถโหลดข้อมูลเครื่องจักรได้\n" + (e.message || ""));
       }
 
     }
 
 
     // =========================================================
-    // RENDER ASSET LIST
+    // RENDER DATALISTS
     // =========================================================
 
     function renderAssetDatalist() {
-
-      const assetList =
-        document.getElementById(
-          "req-asset-list"
-        );
-
+      const assetList = document.getElementById("req-asset-list");
       assetList.innerHTML = "";
 
       rawAssets.forEach(item => {
-
-        const opt =
-          document.createElement("option");
-
-        opt.value =
-          item.assetCode;
-
-        opt.label =
-          item.machineName
-            ? `${item.assetCode} - ${item.machineName}`
-            : item.assetCode;
-
+        const opt = document.createElement("option");
+        opt.value = item.assetCode;
+        opt.label = item.machineName ? `${item.assetCode} - ${item.machineName}` : item.assetCode;
         assetList.appendChild(opt);
-
       });
+    }
 
+    function renderDepartmentDatalist() {
+      const deptList = document.getElementById("req-dept-list");
+      deptList.innerHTML = "";
+
+      rawDepartments.forEach(item => {
+        const opt = document.createElement("option");
+        // แสดงรหัส Dept เช่น PP, MT และชื่อเป็น Label
+        const deptCode = item.Dept || item.deptCode || item.department || "";
+        const deptName = item.Name || item.deptName || "";
+        opt.value = deptCode;
+        opt.label = deptName ? `${deptCode} - ${deptName}` : deptCode;
+        deptList.appendChild(opt);
+      });
+    }
+
+    function renderLocationDatalist() {
+      const locList = document.getElementById("req-loc-list");
+      locList.innerHTML = "";
+
+      rawLocations.forEach(item => {
+        const opt = document.createElement("option");
+        // ใส่ Description เป็น value เลย เช่น Factory 1
+        const locDesc = item.Description || item.Location || item.name || "";
+        opt.value = locDesc;
+        locList.appendChild(opt);
+      });
     }
 
 
     // =========================================================
-    // ASSET INPUT
+    // ASSET INPUT & AUTO-FILL
     // =========================================================
 
     function onAssetInput(val) {
 
-      const compList =
-        document.getElementById(
-          "req-component-list"
-        );
-
+      // 1. กรอง Component
+      const compList = document.getElementById("req-component-list");
       compList.innerHTML = "";
 
-      const filtered =
-        rawComponents.filter(
-          c =>
-            c.assetCode === val ||
-            c.compCode.startsWith(val)
-        );
-
+      const filtered = rawComponents.filter(
+        c => c.assetCode === val || c.compCode.startsWith(val)
+      );
 
       filtered.forEach(item => {
-
-        const opt =
-          document.createElement("option");
-
-        opt.value =
-          item.compCode;
-
-        opt.label =
-          item.compName
-            ? `${item.compCode} - ${item.compName}`
-            : item.compCode;
-
+        const opt = document.createElement("option");
+        opt.value = item.compCode;
+        opt.label = item.compName ? `${item.compCode} - ${item.compName}` : item.compCode;
         compList.appendChild(opt);
-
       });
+
+      // 2. ดึง Location & Department จาก Asset อัตโนมัติ (ถ้ามี match)
+      const matchedAsset = rawAssets.find(a => a.assetCode === val);
+      if (matchedAsset) {
+        const deptInput = document.getElementById("reqDept");
+        const locInput = document.getElementById("reqLoc");
+
+        // แผนกใน asset เก็บเป็นรหัส (เช่น MT, PP)
+        if (matchedAsset.department || matchedAsset.dept || matchedAsset.Dept) {
+          deptInput.value = matchedAsset.department || matchedAsset.dept || matchedAsset.Dept;
+        }
+
+        // สถานที่ใน asset เก็บเป็นชื่อสถานที่ (เช่น Factory 1)
+        if (matchedAsset.location || matchedAsset.Location) {
+          locInput.value = matchedAsset.location || matchedAsset.Location;
+        }
+      }
 
     }
 
@@ -645,62 +642,28 @@
 
     function goToScannerAssetQR(targetInputId) {
 
-      if (
-        typeof liff !== "undefined" &&
-        liff.isInClient() &&
-        liff.scanCodeV2
-      ) {
+      if (typeof liff !== "undefined" && liff.isInClient() && liff.scanCodeV2) {
 
         liff.scanCodeV2()
-
           .then(result => {
+            if (!result || !result.value) return;
 
-            if (!result || !result.value) {
-              return;
-            }
-
-            const scannedValue =
-              result.value.trim();
-
-            const input =
-              document.getElementById(
-                targetInputId
-              );
-
-            if (!input) {
-              return;
-            }
+            const scannedValue = result.value.trim();
+            const input = document.getElementById(targetInputId);
+            if (!input) return;
 
             input.value = scannedValue;
 
-
-            if (
-              targetInputId === "reqAsset"
-            ) {
-
-              onAssetInput(
-                scannedValue
-              );
-
+            if (targetInputId === "reqAsset") {
+              onAssetInput(scannedValue);
             }
-
           })
-
           .catch(err => {
-
-            console.error(
-              "QR Scan Error:",
-              err
-            );
-
+            console.error("QR Scan Error:", err);
           });
 
       } else {
-
-        alert(
-          "การสแกน QR Code รองรับเฉพาะการใช้งานผ่านแอปพลิเคชัน LINE บนมือถือเท่านั้น"
-        );
-
+        alert("การสแกน QR Code รองรับเฉพาะการใช้งานผ่านแอปพลิเคชัน LINE บนมือถือเท่านั้น");
       }
 
     }
@@ -711,31 +674,16 @@
     // =========================================================
 
     function getBase64(file) {
-
-      return new Promise(
-        (resolve, reject) => {
-
-          if (!file) {
-
-            resolve("");
-
-            return;
-          }
-
-          const reader =
-            new FileReader();
-
-          reader.readAsDataURL(file);
-
-          reader.onload = () =>
-            resolve(reader.result);
-
-          reader.onerror =
-            error => reject(error);
-
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          resolve("");
+          return;
         }
-      );
-
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
     }
 
 
@@ -747,331 +695,113 @@
 
       e.preventDefault();
 
-
-      // -----------------------------------------
-      // Check LINE User
-      // -----------------------------------------
-
       if (!lineUserId) {
-
-        alert(
-          "ระบบยังโหลดข้อมูลผู้ใช้งาน LINE ไม่เสร็จ\nกรุณารอสักครู่แล้วลองใหม่อีกครั้ง"
-        );
-
+        alert("ระบบยังโหลดข้อมูลผู้ใช้งาน LINE ไม่เสร็จ\nกรุณารอสักครู่แล้วลองใหม่อีกครั้ง");
         return;
       }
 
-
-      const btn =
-        document.getElementById(
-          "submitBtn"
-        );
-
-
-      // -----------------------------------------
-      // Disable Button
-      // -----------------------------------------
+      const btn = document.getElementById("submitBtn");
 
       btn.disabled = true;
-
-      btn.classList.add(
-        "opacity-60",
-        "cursor-not-allowed"
-      );
-
+      btn.classList.add("opacity-60", "cursor-not-allowed");
       btn.innerHTML = `
         <i class="fa-solid fa-spinner fa-spin text-xs"></i>
         กำลังส่งข้อมูล...
       `;
-
-
-      // -----------------------------------------
-      // SHOW LOADING
-      //
-      // สำคัญ:
-      // Loading จะยังไม่ปิดจนกว่า
-      // response.json() จะเสร็จ
-      // -----------------------------------------
 
       showLoading(
         "กำลังบันทึกข้อมูลแจ้งซ่อม...",
         "กรุณารอสักครู่ ระบบกำลังสร้าง Ticket"
       );
 
-
       try {
 
-        // -----------------------------------------
-        // GET IMAGE
-        // -----------------------------------------
-
-        const file =
-          document.getElementById(
-            "reqImageFile"
-          ).files[0];
-
+        const file = document.getElementById("reqImageFile").files[0];
         let imageBase64 = "";
 
         if (file) {
-
           showLoading(
             "กำลังเตรียมรูปภาพ...",
             "กรุณารอสักครู่"
           );
-
-          imageBase64 =
-            await getBase64(file);
-
+          imageBase64 = await getBase64(file);
         }
 
+        const selectedType = document.querySelector('input[name="reqType"]:checked').value;
 
         // -----------------------------------------
-        // TYPE
+        // PAYLOAD (เพิ่ม department และ location)
         // -----------------------------------------
-
-        const selectedType =
-          document.querySelector(
-            'input[name="reqType"]:checked'
-          ).value;
-
-
-        // -----------------------------------------
-        // PAYLOAD
-        // -----------------------------------------
-
         const payload = {
-
-          action:
-            "createRepairRequest",
-
-          userId:
-            lineUserId,
-
-          displayName:
-            lineDisplayName,
-
-          pictureUrl:
-            linePictureUrl,
-
-          assetCode:
-            document.getElementById(
-              "reqAsset"
-            ).value.trim(),
-
-          componentCode:
-            document.getElementById(
-              "reqComp"
-            ).value.trim(),
-
-          reqType:
-            selectedType,
-
-          priority:
-            document.getElementById(
-              "reqPriority"
-            ).value,
-
-          symptom:
-            document.getElementById(
-              "reqDesc"
-            ).value.trim(),
-
-          image:
-            imageBase64
-
+          action: "createRepairRequest",
+          userId: lineUserId,
+          displayName: lineDisplayName,
+          pictureUrl: linePictureUrl,
+          assetCode: document.getElementById("reqAsset").value.trim(),
+          componentCode: document.getElementById("reqComp").value.trim(),
+          department: document.getElementById("reqDept").value.trim(),
+          location: document.getElementById("reqLoc").value.trim(),
+          reqType: selectedType,
+          priority: document.getElementById("reqPriority").value,
+          symptom: document.getElementById("reqDesc").value.trim(),
+          image: imageBase64
         };
-
-
-        // -----------------------------------------
-        // SEND TO GAS
-        // -----------------------------------------
 
         showLoading(
           "กำลังบันทึกข้อมูลแจ้งซ่อม...",
           "ระบบกำลังสร้างเลขที่ Ticket"
         );
 
-
-        const response =
-          await fetch(
-            GAS_API_URL,
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "text/plain;charset=utf-8"
-              },
-
-              body:
-                JSON.stringify(payload)
-            }
-          );
-
-
-        // -----------------------------------------
-        // CHECK HTTP
-        // -----------------------------------------
+        const response = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        });
 
         if (!response.ok) {
-
-          throw new Error(
-            `HTTP Error ${response.status}`
-          );
-
+          throw new Error(`HTTP Error ${response.status}`);
         }
-
-
-        // -----------------------------------------
-        // WAIT FOR GAS RESPONSE
-        // -----------------------------------------
 
         showLoading(
           "กำลังรับผลการบันทึก...",
           "กรุณารอสักครู่"
         );
 
+        const resData = await response.json();
 
-        const resData =
-          await response.json();
-
-
-        console.log(
-          "Create Repair Response:",
-          resData
-        );
-
-
-        // =================================================
-        // SUCCESS
-        // =================================================
-
-        if (
-          resData.status === "success"
-        ) {
-
-          const ticketNo =
-            resData.ticketNo || "-";
-
-
-          // -----------------------------------------
-          // IMPORTANT:
-          // ปิด Loading หลังจากได้ response แล้วเท่านั้น
-          // -----------------------------------------
-
+        if (resData.status === "success") {
+          const ticketNo = resData.ticketNo || "-";
           hideLoading();
 
+          document.getElementById("ticketNo").textContent = ticketNo;
+          document.getElementById("successMessage").textContent = resData.message || "ระบบบันทึกข้อมูลเรียบร้อยแล้ว";
+          document.getElementById("successResult").classList.remove("hidden");
 
-          // -----------------------------------------
-          // SHOW TICKET
-          // -----------------------------------------
+          // Reset Form
+          document.getElementById("requestForm").reset();
+          document.getElementById("reqTypeCM").checked = true;
+          document.getElementById("req-component-list").innerHTML = "";
 
-          document.getElementById(
-            "ticketNo"
-          ).textContent = ticketNo;
-
-
-          document.getElementById(
-            "successMessage"
-          ).textContent =
-            resData.message ||
-            "ระบบบันทึกข้อมูลเรียบร้อยแล้ว";
-
-
-          document.getElementById(
-            "successResult"
-          ).classList.remove(
-            "hidden"
-          );
-
-
-          // -----------------------------------------
-          // ไม่ปิด LINE
-          // ไม่ reload
-          // ไม่ถามว่าจะทำต่อหรือไม่
-          // -----------------------------------------
-
-          // Reset เฉพาะข้อมูลสำหรับรายการใหม่
-          document.getElementById(
-            "requestForm"
-          ).reset();
-
-
-          // กลับค่า Default
-          document.getElementById(
-            "reqTypeCM"
-          ).checked = true;
-
-
-          // Clear Component List
-          document.getElementById(
-            "req-component-list"
-          ).innerHTML = "";
-
-
-          // ปุ่มกลับมาใช้งานได้
           btn.disabled = false;
-
-          btn.classList.remove(
-            "opacity-60",
-            "cursor-not-allowed"
-          );
-
+          btn.classList.remove("opacity-60", "cursor-not-allowed");
           btn.innerHTML = `
             <i class="fa-solid fa-paper-plane text-xs"></i>
             ส่งแจ้งซ่อม
           `;
-
-
           return;
         }
 
-
-        // =================================================
-        // SERVER RETURN ERROR
-        // =================================================
-
         hideLoading();
-
-
-        alert(
-          "ไม่สามารถบันทึกได้:\n" +
-          (
-            resData.message ||
-            "เกิดข้อผิดพลาดจากระบบ"
-          )
-        );
-
-
+        alert("ไม่สามารถบันทึกได้:\n" + (resData.message || "เกิดข้อผิดพลาดจากระบบ"));
         resetSubmitButton();
-
 
       } catch (err) {
-
-        console.error(
-          "Create Repair Error:",
-          err
-        );
-
-
-        // -----------------------------------------
-        // ERROR
-        // -----------------------------------------
-
+        console.error("Create Repair Error:", err);
         hideLoading();
-
-
-        alert(
-          "เกิดข้อผิดพลาดในการเชื่อมต่อ:\n" +
-          (
-            err.message ||
-            "ไม่สามารถเชื่อมต่อระบบได้"
-          )
-        );
-
-
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อ:\n" + (err.message || "ไม่สามารถเชื่อมต่อระบบได้"));
         resetSubmitButton();
-
       }
 
     }
@@ -1082,28 +812,14 @@
     // =========================================================
 
     function resetSubmitButton() {
-
-      const btn =
-        document.getElementById(
-          "submitBtn"
-        );
-
-      if (!btn) {
-        return;
-      }
-
+      const btn = document.getElementById("submitBtn");
+      if (!btn) return;
       btn.disabled = false;
-
-      btn.classList.remove(
-        "opacity-60",
-        "cursor-not-allowed"
-      );
-
+      btn.classList.remove("opacity-60", "cursor-not-allowed");
       btn.innerHTML = `
         <i class="fa-solid fa-paper-plane text-xs"></i>
         ส่งแจ้งซ่อม
       `;
-
     }
 
 
@@ -1111,78 +827,24 @@
     // LOADING
     // =========================================================
 
-    function showLoading(
-      text,
-      subText
-    ) {
+    function showLoading(text, subText) {
+      const overlay = document.getElementById("loadingOverlay");
+      const textEl = document.getElementById("loadingText");
+      const subTextEl = document.getElementById("loadingSubText");
 
-      const overlay =
-        document.getElementById(
-          "loadingOverlay"
-        );
-
-      const textEl =
-        document.getElementById(
-          "loadingText"
-        );
-
-      const subTextEl =
-        document.getElementById(
-          "loadingSubText"
-        );
-
-
-      if (textEl) {
-
-        textEl.innerText =
-          text ||
-          "กำลังโหลดข้อมูล...";
-
-      }
-
-
-      if (subTextEl) {
-
-        subTextEl.innerText =
-          subText ||
-          "กรุณารอสักครู่";
-
-      }
-
-
-      if (overlay) {
-
-        overlay.classList.remove(
-          "hidden"
-        );
-
-      }
-
+      if (textEl) textEl.innerText = text || "กำลังโหลดข้อมูล...";
+      if (subTextEl) subTextEl.innerText = subText || "กรุณารอสักครู่";
+      if (overlay) overlay.classList.remove("hidden");
     }
-
 
     function hideLoading() {
-
-      const overlay =
-        document.getElementById(
-          "loadingOverlay"
-        );
-
-      if (overlay) {
-
-        overlay.classList.add(
-          "hidden"
-        );
-
-      }
-
+      const overlay = document.getElementById("loadingOverlay");
+      if (overlay) overlay.classList.add("hidden");
     }
-
 
     // =========================================================
     // START
     // =========================================================
-
     init();
 
   </script>
